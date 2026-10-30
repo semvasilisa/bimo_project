@@ -6,6 +6,7 @@ import whisper
 import ollama
 
 import time 
+import re
 
 from piper import PiperVoice
 import sounddevice as sd
@@ -77,6 +78,13 @@ def read_exact(size):
         data.extend(part)
     return bytes(data)
 
+def clean_for_speech(text):
+    text = re.sub(r'\*+', '', text)
+    text = re.sub(r'^\s*#+\s*', '', text, flags=re.MULTILINE)
+    text = re.sub(r'^\s*[-*]\s+', '', text, flags=re.MULTILINE)
+    text = re.sub(r'^\s*\d+\.\s+', '', text, flags=re.MULTILINE)
+    return re.sub(r'\s+', ' ', text).strip()
+
 try:
     while True:
         print("\n[BIMO] Listening. Say 'Hey BMO'...")
@@ -119,7 +127,8 @@ try:
             print(f"[BIMO PROMPT]: {prompt}")
 
             answer_start = time.perf_counter()
-            answer = answer_question(prompt)
+            answer_genereted = answer_question(prompt)
+            answer = clean_for_speech(answer_genereted)
             answer_time = time.perf_counter() - answer_start
 
 
