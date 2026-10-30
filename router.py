@@ -43,7 +43,7 @@ def ask_cloud(prompt):
 def ask_local(prompt, system_prompt=None):   
     # send prompt to gemma 
     response = ollama.chat(
-        model = 'gemma:2b',
+        model = 'qwen2.5:1.5b',
         messages = [
             {
                 'role': 'system',
