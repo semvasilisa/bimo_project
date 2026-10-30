@@ -3,6 +3,9 @@ import re
 import ollama
 import requests
 
+import time
+from ollama import Client
+
 bimo_token = os.getenv("BIMO_TOKEN")
 url_address = "http://localhost:8000/ask"
 
@@ -12,6 +15,21 @@ if not bimo_token:
 headers = {
     "x-bimo-token": bimo_token
 }
+
+# defining the Ollama client for Gemma
+OLLAMA_LAPTOP_URL = os.getenv("OLLAMA_LAPTOP_URL")
+
+if not OLLAMA_LAPTOP_URL:
+    raise RuntimeError(
+        "OLLAMA_LAPTOP_URL environment variable is not set"
+    )
+
+
+# Create an Ollama client
+client = Client(
+    host=OLLAMA_LAPTOP_URL,
+    timeout=20
+)
 
 # ---------------------- METHODS DEFINITION ----------------------
 
@@ -58,12 +76,37 @@ def ask_local(prompt, system_prompt=None):
     answer = response['message']['content'].strip()
     return answer
 
+def ask_laptop(prompt, system_prompt=None):
+    response = client.chat(
+            model = 'gemma:2b',
+            messages = [
+                {
+                    'role': 'system',
+                    'content': system_prompt or 'You are BIMO, a cheerful offline assistant. Keep responses under 2 sentences.'
+                },
+                {
+                    'role': 'user',
+                    'content': prompt
+                }
+            ]
+        )
+    answer = response['message']['content'].strip()
+    return answer
+
 
 def answer_question(prompt):
     if needs_realtime(prompt):
         try:
+            start_time = time.perf_counter()
+            print(f"Request started at: {start_time:.3f} seconds")
+            
             answer = ask_cloud(prompt)
+            end_time = time.perf_counter()
+
             print("[BIMO AI]: Cloud response")
+
+            print(f"Response received at: {end_time:.3f} seconds")
+            print(f"Total request time: {end_time - start_time:.2f} seconds")
             return answer
 
         except (requests.exceptions.RequestException, ValueError) as e:
@@ -71,18 +114,48 @@ def answer_question(prompt):
             print("Trying local Gemma...")
 
             try:
+                start_time = time.perf_counter()
+
                 answer = ask_local(prompt, system_prompt="You have no internet access. Do not guess live information. Admit when you cannot check.")
+
+                end_time = time.perf_counter()
                 print("[BIMO AI]: Local fallback")
+                print(f"Response received at: {end_time:.3f} seconds")
+                print(f"Total request time: {end_time - start_time:.2f} seconds")
                 return answer
             except Exception as local_error:
                 return f"Cloud and local answers both failed: {local_error}"
 
     try:
-        answer = ask_local(prompt)
-        print("[BIMO AI]: Local response")
+        start_time = time.perf_counter()
+        print(f"Request started at: {start_time:.3f} seconds")
+                    
+        answer = ask_laptop(prompt)
+        end_time = time.perf_counter()
+
+        print("[BIMO AI]: Laptop response")
+        print(f"Response received at: {end_time:.3f} seconds")
+        print(f"Total request time: {end_time - start_time:.2f} seconds")     
         return answer
+
     except Exception as e:
-        return f"Local answer failed: {e}"
+        print(f"Laptop ollama failed: {e}")
+        print("Trying local model on pi...")
+
+        try:
+            start_time = time.perf_counter()
+            answer = ask_local(
+                prompt,
+                system_prompt="You have no internet access. Do not guess live information. Admit when you cannot check."
+            )
+            end_time = time.perf_counter()
+            print("[BIMO AI]: Local fallback")
+            print(f"Response received at: {end_time:.3f} seconds")
+            print(f"Total request time: {end_time - start_time:.2f} seconds")     
+            return answer
+
+        except Exception as local_error:
+            return f"Laptop and Pi answers both failed: {local_error}"
 
 if __name__ == "__main__":
     while True:
