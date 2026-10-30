@@ -1,6 +1,5 @@
 import os
 import re
-import ollama
 import requests
 
 import time
@@ -58,37 +57,20 @@ def ask_cloud(prompt):
 
     return data["answer"]
 
-def ask_local(prompt, system_prompt=None):   
-    # send prompt to gemma 
-    response = ollama.chat(
-        model = 'qwen2.5:1.5b',
-        messages = [
-            {
-                'role': 'system',
-                'content': system_prompt or 'You are BIMO, a cheerful offline assistant. Keep responses under 2 sentences.'
-            },
-            {
-                'role': 'user',
-                'content': prompt
-            }
-        ]
-    )
-    answer = response['message']['content'].strip()
-    return answer
-
 def ask_laptop(prompt, system_prompt=None):
     response = client.chat(
             model = 'gemma:2b',
             messages = [
                 {
                     'role': 'system',
-                    'content': system_prompt or 'You are BIMO, a cheerful offline assistant. Keep responses under 2 sentences.'
-                },
+                    'content': system_prompt or 'You are BIMO, a cheerful voice assistant. Reply in plain, natural spoken sentences. Do not use lists, markdown, headings, or emojis. Keep your answer to at most two short sentences.'
+                }, 
                 {
                     'role': 'user',
                     'content': prompt
                 }
-            ]
+            ],
+            options={'num_predict': 100}
         )
     answer = response['message']['content'].strip()
     return answer
@@ -116,15 +98,15 @@ def answer_question(prompt):
             try:
                 start_time = time.perf_counter()
 
-                answer = ask_local(prompt, system_prompt="You have no internet access. Do not guess live information. Admit when you cannot check.Keep responses under 2 sentences.")
+                answer = ask_laptop(prompt, system_prompt="You cannot check live information. Do not guess. Admit when you cannot verify something. Reply in plain spoken sentences, without lists, markdown, or emojis. Keep your answer under two short sentences.")
 
                 end_time = time.perf_counter()
-                print("[BIMO AI]: Local fallback")
+                print("[BIMO AI]: Laptop fallback")
                 print(f"Response received at: {end_time:.3f} seconds")
                 print(f"Total request time: {end_time - start_time:.2f} seconds")
                 return answer
             except Exception as local_error:
-                return f"Cloud and local answers both failed: {local_error}"
+                return "Sorry, I can't reach my main assistant right now. Please try again shortly."
 
     try:
         start_time = time.perf_counter()
@@ -140,22 +122,7 @@ def answer_question(prompt):
 
     except Exception as e:
         print(f"Laptop ollama failed: {e}")
-        print("Trying local model on pi...")
-
-        try:
-            start_time = time.perf_counter()
-            answer = ask_local(
-                prompt,
-                system_prompt="You have no internet access. Do not guess live information. Admit when you cannot check.Keep responses under 2 sentences"
-            )
-            end_time = time.perf_counter()
-            print("[BIMO AI]: Local fallback")
-            print(f"Response received at: {end_time:.3f} seconds")
-            print(f"Total request time: {end_time - start_time:.2f} seconds")     
-            return answer
-
-        except Exception as local_error:
-            return f"Laptop and Pi answers both failed: {local_error}"
+        return "Sorry, I can't reach my main assistant right now. Please try again shortly."
 
 if __name__ == "__main__":
     while True:
