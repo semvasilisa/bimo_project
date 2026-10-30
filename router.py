@@ -28,7 +28,7 @@ if not OLLAMA_LAPTOP_URL:
 # Create an Ollama client
 client = Client(
     host=OLLAMA_LAPTOP_URL,
-    timeout=20
+    timeout=8
 )
 
 # ---------------------- METHODS DEFINITION ----------------------
@@ -116,7 +116,7 @@ def answer_question(prompt):
             try:
                 start_time = time.perf_counter()
 
-                answer = ask_local(prompt, system_prompt="You have no internet access. Do not guess live information. Admit when you cannot check.")
+                answer = ask_local(prompt, system_prompt="You have no internet access. Do not guess live information. Admit when you cannot check.Keep responses under 2 sentences.")
 
                 end_time = time.perf_counter()
                 print("[BIMO AI]: Local fallback")
@@ -146,7 +146,7 @@ def answer_question(prompt):
             start_time = time.perf_counter()
             answer = ask_local(
                 prompt,
-                system_prompt="You have no internet access. Do not guess live information. Admit when you cannot check."
+                system_prompt="You have no internet access. Do not guess live information. Admit when you cannot check.Keep responses under 2 sentences"
             )
             end_time = time.perf_counter()
             print("[BIMO AI]: Local fallback")
