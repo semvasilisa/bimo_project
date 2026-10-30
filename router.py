@@ -5,6 +5,8 @@ import requests
 import time
 from ollama import Client
 
+from httpx import Timeout
+
 bimo_token = os.getenv("BIMO_TOKEN")
 url_address = "http://localhost:8000/ask"
 
@@ -27,7 +29,7 @@ if not OLLAMA_LAPTOP_URL:
 # Create an Ollama client
 client = Client(
     host=OLLAMA_LAPTOP_URL,
-    timeout=8
+    timeout=Timeout(10.0, connect=2.0) # 2s max connect timeout, 10s max waits to receive data after connecting
 )
 
 # ---------------------- METHODS DEFINITION ----------------------
@@ -45,7 +47,7 @@ def ask_cloud(prompt):
         url_address,
         json={"prompt": prompt},
         headers=headers,
-        timeout=8
+        timeout=(2, 10) # 2s max connect timeout, 10s max read timeout
     )
     
     response.raise_for_status()
