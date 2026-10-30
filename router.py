@@ -8,7 +8,7 @@ from ollama import Client
 from httpx import Timeout
 
 bimo_token = os.getenv("BIMO_TOKEN")
-url_address = "http://localhost:8000/ask"
+url_address = "http://192.168.0.102:8000/ask"
 
 if not bimo_token:
     raise RuntimeError("BIMO_TOKEN is not set!")
