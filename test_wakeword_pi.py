@@ -51,8 +51,12 @@ import subprocess
 AUDIO_FILE = "recorded_prompt.wav"
 RATE = 16000
 CHUNK = 1280
-RECORD_SECONDS = 10
+MAX_RECORD_SECONDS = 10
+SILENCE_SECONDS = 1.0
+START_TIMEOUT_SECONDS = 5
 MIC_TARGET = "85"
+
+SILENCE_THRESHOLD = 500
 
 mic_process = subprocess.Popen(
     [
@@ -78,6 +82,56 @@ def read_exact(size):
         data.extend(part)
     return bytes(data)
 
+# silence detection function
+def record_until_silence():
+    recorded_audio = []
+    speech_started = False
+    silence_duration = 0.0
+    elapsed = 0.0
+    speech_elapsed = 0.0
+
+    print("[BIMO] Waiting for you to speak...")
+
+    while True:
+        raw_data = read_exact(CHUNK * 2)
+        audio_frame = np.frombuffer(raw_data, dtype=np.int16)
+
+        rms = np.sqrt(np.mean(audio_frame.astype(np.float32) ** 2))
+
+        elapsed += CHUNK / RATE
+
+        if speech_started:
+            speech_elapsed += CHUNK / RATE
+
+        # Print loudness so we can choose a suitable threshold.
+        print(f"[MIC] RMS: {rms:.0f}")
+
+        if not speech_started:
+            if rms >= SILENCE_THRESHOLD:
+                speech_started = True
+                print("[BIMO] Speech detected!")
+                recorded_audio.append(raw_data)
+            elif elapsed >= START_TIMEOUT_SECONDS:
+                print("[BIMO] No speech detected. Returning to listening.")
+                return None
+
+        else:
+            recorded_audio.append(raw_data)
+
+            if rms < SILENCE_THRESHOLD:
+                silence_duration += CHUNK / RATE
+            else:
+                silence_duration = 0.0
+
+            if silence_duration >= SILENCE_SECONDS:
+                print("[BIMO] Silence detected. Stopping recording.")
+                break
+
+    if not speech_started:
+        return None
+
+    return recorded_audio
+
 def clean_for_speech(text):
     text = re.sub(r'\*+', '', text)
     text = re.sub(r'^\s*#+\s*', '', text, flags=re.MULTILINE)
@@ -95,17 +149,17 @@ try:
         for key, value in prediction.items():
             print(f"\r[BIMO] Wake-word score: {value:.2f}", end="")
 
-        if prediction.get("wakeword", 0) > 0.8:
+        if prediction.get("wakeword", 0) > 0.6:
             print("\n[BIMO] Wake word detected! Say your question...")
-            recorded_audio = []
+            record_start = time.perf_counter()
 
-            record_start = time.perf_counter()           
-
-            for _ in range(int(RATE / CHUNK * RECORD_SECONDS)):
-                recorded_audio.append(read_exact(CHUNK * 2))
+            recorded_audio = record_until_silence()
 
             record_time = time.perf_counter() - record_start
             print(f"[TIMING] Recording: {record_time:.2f} seconds")
+
+            if recorded_audio is None:
+                continue
 
             with wave.open(AUDIO_FILE, "wb") as wf:
                 wf.setnchannels(1)
