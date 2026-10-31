@@ -103,9 +103,6 @@ def record_until_silence():
         if speech_started:
             speech_elapsed += CHUNK / RATE
 
-        # Print loudness so we can choose a suitable threshold.
-        print(f"[MIC] RMS: {rms:.0f}")
-
         if not speech_started:
             if rms >= SILENCE_THRESHOLD:
                 speech_started = True
