@@ -118,6 +118,10 @@ def record_until_silence():
         else:
             recorded_audio.append(raw_data)
 
+            if speech_elapsed >= MAX_RECORD_SECONDS:
+                print("[BIMO] Maximum recording time reached.")
+                break
+
             if rms < SILENCE_THRESHOLD:
                 silence_duration += CHUNK / RATE
             else:
@@ -169,7 +173,7 @@ try:
 
             print("[BIMO] Transcribing...")
             transcribe_start = time.perf_counter()
-            result = model.transcribe(AUDIO_FILE, fp16=False)
+            result = model.transcribe(AUDIO_FILE, fp16=False, condition_on_previous_text=False)
             prompt = result["text"].strip()
             transcribe_time = time.perf_counter() - transcribe_start
             print(f"[TIMING] Whisper transcription: {transcribe_time:.2f}s")
