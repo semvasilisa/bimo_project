@@ -66,16 +66,46 @@ def ask_laptop(prompt, system_prompt=None):
             messages = [
                 {
                     'role': 'system',
-                    'content': system_prompt or 'You are BIMO, a cheerful voice assistant. Reply in plain, natural spoken sentences. Do not use lists, markdown, headings, or emojis. Keep your answer to at most two short sentences. Do not volunteer information about yourself, your identity, your purpose, your creators, or any organization associated with you unless the user explicitly asks.'
+                    'content': system_prompt or (
+                        'You are BIMO, a cheerful voice assistant. '
+                        'Reply in plain, natural spoken sentences. '
+                        'Do not use lists, markdown, headings, or emojis. '
+                        'Answer in no more than 25 words. '
+                        'Use one or two short, grammatically complete sentences. '
+                        'Use simple words and complete your final thought. '
+                        'Never end with an unfinished phrase or a dangling word. '
+                        'Before finishing, check that your final sentence makes grammatical sense. '
+                        'Do not volunteer information about yourself, your identity, '
+                        'your purpose, your creators, or any organization associated '
+                        'with you unless the user explicitly asks.'
+                    )
                 }, 
                 {
                     'role': 'user',
                     'content': prompt
                 }
             ],
-            options={'num_predict': 100}
+            options={'num_predict': 200}
         )
     answer = response['message']['content'].strip()
+
+    done_reason = response.get('done_reason', 'unknown')
+
+    print(f"[OLLAMA] Done reason: {done_reason}")
+
+    if done_reason == 'length':
+        print("[OLLAMA] Response reached token limit. Removing unfinished sentence.")
+
+        import re
+
+        # Keep only complete sentences.
+        sentences = re.findall(r'.*?[.!?](?=\s|$)', answer)
+
+        answer = " ".join(sentences).strip()
+
+    if not answer:
+        return "Sorry, I couldn't complete my answer. Please try again."
+
     return limit_sentences(answer)
 
 def limit_sentences(text, max_sentences=2, max_words=25):
