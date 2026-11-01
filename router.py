@@ -78,11 +78,26 @@ def ask_laptop(prompt, system_prompt=None):
     answer = response['message']['content'].strip()
     return limit_sentences(answer)
 
-def limit_sentences(text, max_sentences=2):
+def limit_sentences(text, max_sentences=2, max_words=25):
     # split after sentence-ending punctuation followed by whitespace.
     sentences = re.split(r'(?<=[.!?])\s+', text.strip())
 
-    return " ".join(sentences[:max_sentences])
+    # Keep no more than two sentences.
+    sentences = sentences[:max_sentences]
+
+    # Enforce the word limit.
+    words = " ".join(sentences).split()
+
+    if len(words) > max_words:
+        words = words[:max_words]
+
+    answer = " ".join(words)
+
+    # Finish naturally if the answer was cut off.
+    if answer and answer[-1] not in ".!?":
+        answer += "."
+
+    return answer
 
 
 def answer_question(prompt):
