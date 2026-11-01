@@ -11,6 +11,10 @@ import re
 from piper import PiperVoice
 import sounddevice as sd
 
+import subprocess
+import tempfile
+import numpy as np
+
 from router import answer_question
 
 # --- 0. Initialize Piper Neural TTS ---
@@ -19,16 +23,29 @@ print("[BIMO Engine] Loading Piper neural voice model...")
 voice = PiperVoice.load(MODEL_PATH)
 
 def speak(text):
-    import subprocess
-    import tempfile
-    import numpy as np
 
     print(f"[BIMO SPEAKING]: {text}")
+
+    # measure Piper synthesis
+    synthesis_start = time.perf_counter()
+
     audio_bytes = bytearray()
+    total_samples = 0
 
     for chunk in voice.synthesize(text):
         audio_bytes.extend(chunk.audio_int16_bytes)
+        total_samples += len(chunk.audio_int16_bytes) // 2
 
+    synthesis_time = time.perf_counter() - synthesis_start
+
+    # calculate actual generated audio duration
+    sample_rate = voice.config.sample_rate
+    audio_duration = total_samples / sample_rate
+
+    print(f"[PIPER] Synthesis: {synthesis_time:.2f}s")
+    print(f"[PIPER] Generated audio length: {audio_duration:.2f}s")
+
+    # Prepare WAV file
     with tempfile.NamedTemporaryFile(suffix=".wav") as temp:
         with wave.open(temp.name, "wb") as wf:
             wf.setnchannels(1)
@@ -36,7 +53,14 @@ def speak(text):
             wf.setframerate(voice.config.sample_rate)
             wf.writeframes(bytes(audio_bytes))
 
+        # measure actual playback
+        playback_start = time.perf_counter()
+
         subprocess.run(["pw-play", temp.name], check=True)
+        playback_time = time.perf_counter() - playback_start
+
+    print(f"[PIPER] Playback: {playback_time:.2f}s")
+    print(f"[PIPER] Total speak time: {synthesis_time + playback_time:.2f}s")
 
 WAKE_WORD_MODEL = "./wakeword.onnx"
 owwModel = Model(wakeword_model_paths=[WAKE_WORD_MODEL])
@@ -51,8 +75,8 @@ import subprocess
 AUDIO_FILE = "recorded_prompt.wav"
 RATE = 16000
 CHUNK = 1280
-MAX_RECORD_SECONDS = 10
-SILENCE_SECONDS = 1.0
+MAX_RECORD_SECONDS = 10 # max recordning duration 
+SILENCE_SECONDS = 1.0 # stop recording after 1s of silence 
 START_TIMEOUT_SECONDS = 5
 MIC_TARGET = "85"
 
