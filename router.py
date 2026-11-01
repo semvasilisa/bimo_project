@@ -6,6 +6,7 @@ import time
 from ollama import Client
 
 from httpx import Timeout
+import re
 
 bimo_token = os.getenv("BIMO_TOKEN")
 url_address = "http://192.168.0.102:8000/ask"
@@ -65,7 +66,7 @@ def ask_laptop(prompt, system_prompt=None):
             messages = [
                 {
                     'role': 'system',
-                    'content': system_prompt or 'You are BIMO, a cheerful voice assistant. Reply in plain, natural spoken sentences. Do not use lists, markdown, headings, or emojis. Keep your answer to at most two short sentences.'
+                    'content': system_prompt or 'You are BIMO, a cheerful voice assistant. Reply in plain, natural spoken sentences. Do not use lists, markdown, headings, or emojis. Keep your answer to at most two short sentences. Do not volunteer information about yourself, your identity, your purpose, your creators, or any organization associated with you unless the user explicitly asks.'
                 }, 
                 {
                     'role': 'user',
@@ -75,7 +76,13 @@ def ask_laptop(prompt, system_prompt=None):
             options={'num_predict': 100}
         )
     answer = response['message']['content'].strip()
-    return answer
+    return limit_sentences(answer)
+
+def limit_sentences(text, max_sentences=2):
+    # split after sentence-ending punctuation followed by whitespace.
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+
+    return " ".join(sentences[:max_sentences])
 
 
 def answer_question(prompt):
@@ -91,7 +98,7 @@ def answer_question(prompt):
 
             print(f"Response received at: {end_time:.3f} seconds")
             print(f"Total request time: {end_time - start_time:.2f} seconds")
-            return answer
+            return limit_sentences(answer)
 
         except (requests.exceptions.RequestException, ValueError) as e:
             print(f"Cloud failed: {e}")
@@ -106,7 +113,7 @@ def answer_question(prompt):
                 print("[BIMO AI]: Laptop fallback")
                 print(f"Response received at: {end_time:.3f} seconds")
                 print(f"Total request time: {end_time - start_time:.2f} seconds")
-                return answer
+                return limit_sentences(answer)
             except Exception as local_error:
                 return "Sorry, I can't reach my main assistant right now. Please try again shortly."
 
@@ -120,7 +127,7 @@ def answer_question(prompt):
         print("[BIMO AI]: Laptop response")
         print(f"Response received at: {end_time:.3f} seconds")
         print(f"Total request time: {end_time - start_time:.2f} seconds")     
-        return answer
+        return limit_sentences(answer)
 
     except Exception as e:
         print(f"Laptop ollama failed: {e}")
