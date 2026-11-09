@@ -96,8 +96,6 @@ def ask_laptop(prompt, system_prompt=None):
     if done_reason == 'length':
         print("[OLLAMA] Response reached token limit. Removing unfinished sentence.")
 
-        import re
-
         # Keep only complete sentences.
         sentences = re.findall(r'.*?[.!?](?=\s|$)', answer)
 
@@ -109,25 +107,28 @@ def ask_laptop(prompt, system_prompt=None):
     return limit_sentences(answer)
 
 def limit_sentences(text, max_sentences=2, max_words=25):
-    # split after sentence-ending punctuation followed by whitespace.
     sentences = re.split(r'(?<=[.!?])\s+', text.strip())
 
-    # Keep no more than two sentences.
-    sentences = sentences[:max_sentences]
+    selected = []
+    total_words = 0
 
-    # Enforce the word limit.
-    words = " ".join(sentences).split()
+    for sentence in sentences[:max_sentences]:
+        word_count = len(sentence.split())
 
-    if len(words) > max_words:
-        words = words[:max_words]
+        # Always keep the first sentence, even if it exceeds the budget.
+        if not selected:
+            selected.append(sentence)
+            total_words += word_count
+            continue
 
-    answer = " ".join(words)
+        # Keep subsequent sentences only if they fit within the budget.
+        if total_words + word_count <= max_words:
+            selected.append(sentence)
+            total_words += word_count
+        else:
+            break
 
-    # Finish naturally if the answer was cut off.
-    if answer and answer[-1] not in ".!?":
-        answer += "."
-
-    return answer
+    return " ".join(selected)
 
 
 def answer_question(prompt):
