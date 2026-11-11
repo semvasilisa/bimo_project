@@ -78,7 +78,7 @@ CHUNK = 1280
 MAX_RECORD_SECONDS = 10 # max recordning duration 
 SILENCE_SECONDS = 1.0 # stop recording after 1s of silence 
 START_TIMEOUT_SECONDS = 5
-MIC_TARGET = "85"
+MIC_TARGET = "bluez_input.78:2B:64:DD:D1:56"
 
 SILENCE_THRESHOLD = 500
 
