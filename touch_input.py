@@ -81,7 +81,6 @@ class TouchInput:
                     if now - self._last_tap >= MIN_TAP_GAP:
                         self._last_tap = now
                         self._tapped.set()
-                        print("[TOUCH] tap flagged")
         except OSError as e:
             if not self._stop_event.is_set():
                 print(f"[TOUCH] Stopped reading: {e}")
