@@ -34,6 +34,8 @@ except Exception as e:
     print(f"[TOUCH] Disabled: {e}")
     touch = None
 
+touch = None 
+
 import whisper
 
 # ---------------------------------------------------------------------------
@@ -247,10 +249,17 @@ def start_microphone():
 def wait_for_wake_word():
     print("\n[BIMO] Listening. Say 'Hey BMO'...")
 
+    if touch is not None: 
+        touch.clear()
+
     while True:
         raw_data = read_exact(CHUNK * 2)
         audio_frame = np.frombuffer(raw_data, dtype=np.int16)
         prediction = owwModel.predict(audio_frame)
+
+        if touch is not None and touch.was_tapped():
+            print("\n[BIMO] Touch detected! Say your question...")
+            return
 
         score = prediction.get("wakeword", 0)
         print(f"\r[BIMO] Wake-word score: {score:.2f}", end="")
@@ -413,6 +422,9 @@ def main():
 
         if face is not None:
             face.stop() # clear the screen
+
+        if touch is not None: 
+            touch.stop()
 
 
 if __name__ == "__main__":
