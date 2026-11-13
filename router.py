@@ -6,7 +6,6 @@ import time
 from ollama import Client
 
 from httpx import Timeout
-import re
 
 ROUTER_FAILURE_SENTENCE = "Sorry, I can't reach my main assistant right now. Please try again shortly."
 
@@ -72,14 +71,15 @@ def ask_laptop(prompt, system_prompt=None):
                         'You are BIMO, a cheerful voice assistant. '
                         'Reply in plain, natural spoken sentences. '
                         'Do not use lists, markdown, headings, or emojis. '
-                        'Answer in no more than 25 words. '
-                        'Use one or two short, grammatically complete sentences. '
+                        'Answer in no more than 40 words. '
+                        'Use one, two or three short, grammatically complete sentences. '
                         'Use simple words and complete your final thought. '
                         'Never end with an unfinished phrase or a dangling word. '
                         'Before finishing, check that your final sentence makes grammatical sense. '
                         'Do not volunteer information about yourself, your identity, '
                         'your purpose, your creators, or any organization associated '
-                        'with you unless the user explicitly asks.'
+                        'with you unless the user explicitly asks. '
+                        "Start directly with the answer. Never begin with 'Sure' or 'Here's'."
                     )
                 }, 
                 {
@@ -108,7 +108,7 @@ def ask_laptop(prompt, system_prompt=None):
 
     return limit_sentences(answer)
 
-def limit_sentences(text, max_sentences=2, max_words=25):
+def limit_sentences(text, max_sentences=3, max_words=40):
     sentences = re.split(r'(?<=[.!?])\s+', text.strip())
 
     selected = []
@@ -163,7 +163,7 @@ def answer_question(prompt):
                 print(f"Total request time: {end_time - start_time:.2f} seconds")
                 return limit_sentences(answer)
             except Exception as local_error:
-                return "Sorry, I can't reach my main assistant right now. Please try again shortly."
+                return ROUTER_FAILURE_SENTENCE
 
     try:
         start_time = time.perf_counter()
