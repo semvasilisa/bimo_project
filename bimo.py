@@ -11,7 +11,7 @@ import numpy as np
 from openwakeword.model import Model  # wake-word detection model
 from piper import PiperVoice
 
-from router import answer_question
+from router import answer_question, ROUTER_FAILURE_SENTENCE
 from face_display import FaceDisplay
 
 try:
@@ -335,7 +335,10 @@ def handle_turn():
     print(f"[BIMO PROMPT]: {prompt}")
 
     answer_start = time.perf_counter()
-    answer = clean_for_speech(answer_question(prompt))
+
+    raw_answer = answer_question(prompt)
+    answer = clean_for_speech(raw_answer)
+
     answer_time = time.perf_counter() - answer_start
 
     print(f"[BIMO AI]: {answer}")
@@ -343,7 +346,10 @@ def handle_turn():
 
     # state: SPEAKING
     speak_start = time.perf_counter()
-    speak(answer)
+
+    face_state = "error" if raw_answer == ROUTER_FAILURE_SENTENCE else "speaking"
+    speak(answer, face_state=face_state)
+    
     speak_time = time.perf_counter() - speak_start
 
     print(f"[TIMING] Piper speech: {speak_time:.2f} seconds")
