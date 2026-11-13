@@ -25,6 +25,15 @@ def set_face(state):
     if face is not None:
         face.set_state(state)
 
+from touch_input import TouchInput
+
+try:
+    touch = TouchInput()
+    touch.start()
+except Exception as e:
+    print(f"[TOUCH] Disabled: {e}")
+    touch = None
+
 import whisper
 
 # ---------------------------------------------------------------------------
@@ -349,7 +358,7 @@ def handle_turn():
 
     face_state = "error" if raw_answer == ROUTER_FAILURE_SENTENCE else "speaking"
     speak(answer, face_state=face_state)
-    
+
     speak_time = time.perf_counter() - speak_start
 
     print(f"[TIMING] Piper speech: {speak_time:.2f} seconds")
