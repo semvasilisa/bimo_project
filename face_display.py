@@ -200,6 +200,7 @@ class FaceDisplay:
     def _load_picture(self, path):
         # convert("RGB") drops transparency (transparent areas usually become black)
         image = Image.open(path).convert("RGB")
+        image = image.rotate(180)
 
         if image.size != (self.width, self.height):
             print(f"[FACE] {os.path.basename(path)} is {image.size[0]}x{image.size[1]}, "
