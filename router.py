@@ -8,6 +8,7 @@ from ollama import Client
 from httpx import Timeout
 
 ROUTER_FAILURE_SENTENCE = "Sorry, I can't reach my main assistant right now. Please try again shortly."
+FILLER_START = re.compile(r"^(sure|certainly|of course|absolutely|okay)\b[!,.:]?\s*", re.IGNORECASE)
 
 bimo_token = os.getenv("BIMO_TOKEN")
 url_address = "http://192.168.0.102:8000/ask"
@@ -106,6 +107,8 @@ def ask_laptop(prompt, system_prompt=None):
     if not answer:
         return "Sorry, I couldn't complete my answer. Please try again."
 
+    answer = FILLER_START.sub("", answer)
+    answer = answer[:1].upper() + answer[1:]
     return limit_sentences(answer)
 
 def limit_sentences(text, max_sentences=3, max_words=40):
