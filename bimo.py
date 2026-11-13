@@ -34,8 +34,6 @@ except Exception as e:
     print(f"[TOUCH] Disabled: {e}")
     touch = None
 
-touch = None 
-
 import whisper
 
 # ---------------------------------------------------------------------------
