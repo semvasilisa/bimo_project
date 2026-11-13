@@ -84,7 +84,7 @@ def corner_pattern(width, height, size=60):
 
 def main():
     print("Framebuffers found:")
-    for path in sorted(glob.glob("/sys/class/graphics/fb*")):
+    for path in sorted(glob.glob("/sys/class/graphics/fb[0-9]")):
         with open(f"{path}/name") as f:
             name = f.read().strip()
         with open(f"{path}/virtual_size") as f:
