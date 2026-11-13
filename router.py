@@ -8,6 +8,8 @@ from ollama import Client
 from httpx import Timeout
 import re
 
+ROUTER_FAILURE_SENTENCE = "Sorry, I can't reach my main assistant right now. Please try again shortly."
+
 bimo_token = os.getenv("BIMO_TOKEN")
 url_address = "http://192.168.0.102:8000/ask"
 
@@ -177,7 +179,7 @@ def answer_question(prompt):
 
     except Exception as e:
         print(f"Laptop ollama failed: {e}")
-        return "Sorry, I can't reach my main assistant right now. Please try again shortly."
+        return ROUTER_FAILURE_SENTENCE
 
 if __name__ == "__main__":
     while True:
