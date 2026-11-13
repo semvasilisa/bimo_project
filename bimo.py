@@ -7,11 +7,25 @@ import time
 import wave
 
 import numpy as np
-import whisper
+
 from openwakeword.model import Model  # wake-word detection model
 from piper import PiperVoice
 
 from router import answer_question
+from face_display import FaceDisplay
+
+try:
+    face = FaceDisplay()
+    face.start()          # starts in "warmup"
+except Exception as e:     # a broken screen must not kill BIMO
+    print(f"[FACE] Disabled: {e}")
+    face = None
+
+def set_face(state):
+    if face is not None:
+        face.set_state(state)
+
+import whisper
 
 # ---------------------------------------------------------------------------
 # Settings
@@ -46,12 +60,12 @@ owwModel = Model(wakeword_model_paths=[WAKE_WORD_MODEL])
 
 print("[BIMO Engine] Loading local Whisper model (tiny.en)...")
 whisper_model = whisper.load_model("tiny.en")
-
+set_face("idle") # state: IDLE
 
 # ---------------------------------------------------------------------------
 # Speech output
 # ---------------------------------------------------------------------------
-def speak(text):
+def speak(text, face_state="speaking"):
     print(f"[BIMO SPEAKING]: {text}")
 
     # measure Piper synthesis
@@ -80,6 +94,7 @@ def speak(text):
             wf.setframerate(sample_rate)
             wf.writeframes(bytes(audio_bytes))
 
+        set_face(face_state) # state: SPEAKING
         # measure the real playback time
         playback_start = time.perf_counter()
         subprocess.run(["pw-play", temp.name], check=True)
@@ -92,7 +107,7 @@ def speak(text):
 def say_fallback():
     """Speak the fixed sentence; never let this crash the loop."""
     try:
-        speak(FALLBACK_SENTENCE)
+        speak(FALLBACK_SENTENCE, face_state="error")
     except Exception as e:
         print(f"[BIMO] Could not speak the fallback sentence: {e!r}")
 
@@ -284,7 +299,7 @@ def record_until_silence():
 # One full turn: record -> Whisper -> answer -> speak
 # ---------------------------------------------------------------------------
 def handle_turn():
-    # state: LISTENING
+    set_face("listening") # state: LISTENING
     record_start = time.perf_counter()
     recorded_audio = record_until_silence()
     record_time = time.perf_counter() - record_start
@@ -303,7 +318,7 @@ def handle_turn():
         wf.setframerate(RATE)
         wf.writeframes(b"".join(recorded_audio))
 
-    # state: THINKING
+    set_face("thinking") # state: THINKING
     print("[BIMO] Transcribing...")
     transcribe_start = time.perf_counter()
     result = whisper_model.transcribe(
@@ -345,7 +360,6 @@ def resume_listening():
     owwModel.reset()
     print(f"[TEST] Microphone restart took {time.perf_counter() - restart_start:.2f} s")
 
-
 # ---------------------------------------------------------------------------
 # Main loop
 # ---------------------------------------------------------------------------
@@ -369,6 +383,7 @@ def main():
                 print(f"[BIMO] Turn failed: {e!r}")
                 say_fallback()
 
+            set_face("idle") # state: IDLE
             resume_listening()
 
     except MicrophoneError as e:
@@ -380,6 +395,9 @@ def main():
         if os.path.exists(AUDIO_FILE):
             os.remove(AUDIO_FILE)
         print(f"[TEST] Finished after {turns} turns.")
+
+        if face is not None:
+            face.stop() # clear the screen
 
 
 if __name__ == "__main__":
