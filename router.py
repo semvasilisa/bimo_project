@@ -11,7 +11,6 @@ ROUTER_FAILURE_SENTENCE = "Sorry, I can't reach my main assistant right now. Ple
 FILLER_START = re.compile(r"^(sure|certainly|of course|absolutely|okay)\b[!,.:]?\s*", re.IGNORECASE)
 
 bimo_token = os.getenv("BIMO_TOKEN")
-url_address = "http://192.168.0.102:8000/ask"
 
 if not bimo_token:
     raise RuntimeError("BIMO_TOKEN is not set!")
@@ -20,20 +19,26 @@ headers = {
     "x-bimo-token": bimo_token
 }
 
-# defining the Ollama client for Gemma
-OLLAMA_LAPTOP_URL = os.getenv("OLLAMA_LAPTOP_URL")
 
-if not OLLAMA_LAPTOP_URL:
-    raise RuntimeError(
-        "OLLAMA_LAPTOP_URL environment variable is not set"
+def get_url_list(name):
+    """Read a comma-separated list of addresses from an environment variable."""
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"{name} is not set!")
+    return [u.strip() for u in value.split(",") if u.strip()]
+
+
+# Addresses of the server on the laptop: home first, hotspot second
+server_urls = get_url_list("BIMO_SERVER_URLS")
+
+# One Ollama client per laptop address
+laptop_clients = [
+    Client(
+        host=u,
+        timeout=Timeout(10.0, connect=2.0)  # 2s max connect, 10s max wait for data
     )
-
-
-# Create an Ollama client
-client = Client(
-    host=OLLAMA_LAPTOP_URL,
-    timeout=Timeout(10.0, connect=2.0) # 2s max connect timeout, 10s max waits to receive data after connecting
-)
+    for u in get_url_list("OLLAMA_LAPTOP_URLS")
+]
 
 # ---------------------- METHODS DEFINITION ----------------------
 
@@ -45,25 +50,52 @@ def needs_realtime(prompt):
     return any(word in words for word in trigger_words)
 
 def ask_cloud(prompt):
-    # send this prompt to my server and give me its response
-    response = requests.post(
-        url_address,
-        json={"prompt": prompt},
-        headers=headers,
-        timeout=(2, 10) # 2s max connect timeout, 10s max read timeout
-    )
-    
-    response.raise_for_status()
-    data = response.json()
+    last_error = None
 
-    # check if the 'answer' key is present in the response
-    if not isinstance(data, dict) or "answer" not in data:
-        raise ValueError("Invalid cloud response: missing 'answer'")
+    for url in list(server_urls):
+        try:
+            response = requests.post(
+                url,
+                json={"prompt": prompt},
+                headers=headers,
+                timeout=(2, 10)  # 2s max connect timeout, 10s max read timeout
+            )
+            response.raise_for_status()
+            data = response.json()
 
-    return data["answer"]
+            if not isinstance(data, dict) or "answer" not in data:
+                raise ValueError("Invalid cloud response: missing 'answer'")
+
+        except (requests.exceptions.RequestException, ValueError) as e:
+            print(f"[CLOUD] {url} failed: {e}")
+            last_error = e
+            continue
+
+        server_urls.remove(url)
+        server_urls.insert(0, url)
+        return data["answer"]
+
+    raise last_error
+
+def laptop_chat(**kwargs):
+    last_error = None
+
+    for laptop_client in list(laptop_clients):
+        try:
+            response = laptop_client.chat(**kwargs)
+        except Exception as e:
+            print(f"[OLLAMA] {laptop_client._client.base_url} failed: {e}")
+            last_error = e
+            continue
+
+        laptop_clients.remove(laptop_client)
+        laptop_clients.insert(0, laptop_client)
+        return response
+
+    raise last_error
 
 def ask_laptop(prompt, system_prompt=None):
-    response = client.chat(
+    response = laptop_chat(
             model = 'gemma:2b',
             messages = [
                 {
